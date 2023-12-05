@@ -1,0 +1,36 @@
+
+from ib_insync import IB, Option
+
+# Connect to TWS
+ib = IB()
+ib.connect('127.0.0.1', 7497, clientId=1234)
+
+# Define the options contract
+contract = Option('SPY', '20240229', 400, 'P', 'SMART')
+
+# Qualify the contract
+ib.qualifyContracts(contract)
+
+ib.reqMarketDataType(3)
+
+# Request market data
+ticker = ib.reqMktData(contract, '106')
+
+# Wait for the data to be available
+while ticker.modelGreeks is None or ticker.bid is None or ticker.ask is None or ticker.last is None or ticker.volume is None:
+    ib.sleep(1)
+
+# Print the Greeks
+print(f"Delta: {ticker.modelGreeks.delta}")
+print(f"Gamma: {ticker.modelGreeks.gamma}")
+print(f"Vega: {ticker.modelGreeks.vega}")
+print(f"Theta: {ticker.modelGreeks.theta}")
+
+# Print the pricing data
+print(f"Bid: {ticker.bid}")
+print(f"Ask: {ticker.ask}")
+print(f"Last: {ticker.last}")
+print(f"Volume: {ticker.volume}")
+
+# Disconnect from TWS
+ib.disconnect()
