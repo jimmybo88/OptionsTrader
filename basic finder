@@ -1,0 +1,38 @@
+from ib_insync import *
+from datetime import datetime
+
+util.startLoop()
+
+ib = IB()
+ib.connect('127.0.0.1', 7497, clientId=1234)
+
+# Replace these with your option details
+symbol = 'SPY'
+expiry = '20231206'  # Format: YYYYMMDD
+strike = 450.0
+right = 'P'  # 'C' for call, 'P' for put
+
+# Create Option contract
+option = Option(symbol, expiry, strike, right, exchange='SMART')
+ib.qualifyContracts(option)
+
+# Calculate implied volatility
+impliedVolatility = ib.calculateImpliedVolatility(option, option.marketPrice(), 0.2)
+print(f"Implied Volatility for {symbol} {expiry} {right}{strike}: {impliedVolatility * 100:.2f}%")
+
+# Request market data for Greeks
+ib.reqMktData(option, '106')
+
+ib.sleep(1)  # Wait for data to update
+
+# Get the ticker
+[ticker] = ib.reqTickers(option)
+
+# Check and print Delta
+if ticker.modelGreeks:
+    delta = ticker.modelGreeks.delta
+    print(f"Delta for {symbol} {expiry} {right}{strike}: {delta}")
+else:
+    print("Model Greeks are not available for this option.")
+
+ib.disconnect()
