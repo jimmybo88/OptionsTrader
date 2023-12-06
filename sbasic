@@ -1,0 +1,90 @@
+from ib_insync import *
+from datetime import datetime
+import pandas as pd
+
+util.startLoop()
+
+ib = IB()
+ib.connect('127.0.0.1', 7497, clientId=1234)
+
+spx = Stock('SPY', 'SMART', 'USD')
+ib.qualifyContracts(spx)
+
+ib.reqMarketDataType(1)
+
+[ticker] = ib.reqTickers(spx)
+print(ticker)
+
+spxValue = ticker.marketPrice()
+print(spxValue)
+
+
+# Calculate the starting strike price
+strike = round((spxValue * 0.9),0)
+print(strike)
+
+# Get the closest expiration date
+chains = ib.reqSecDefOptParams(spx.symbol, '', spx.secType, spx.conId)
+chains_df = util.df(chains)
+chains_df = chains_df[chains_df['exchange'] == 'SMART']
+chains_df = chains_df.explode('expirations')
+chains_df['expirations'] = pd.to_datetime(chains_df['expirations'], format='%Y%m%d')
+chains_df['DTE'] = (chains_df['expirations'] - pd.Timestamp(datetime.now())).dt.days
+chains_df = chains_df.iloc[(chains_df['DTE'] - 90).abs().argsort()]
+closest_expiration_int = int(chains_df.iloc[0]['expirations'].strftime('%Y%m%d'))
+print(closest_expiration_int)
+
+option = Option('SPY', closest_expiration_int, strike, right='P', exchange='SMART')
+ib.qualifyContracts(option)
+
+ib.reqMarketDataType(1)
+# Request market data
+market_data = ib.reqMktData(option)
+
+# Wait for the market data to update
+ib.sleep(1)
+
+# Get the ticker
+[ticker] = ib.reqTickers(option)
+
+if ticker.modelGreeks:
+    print(f"Delta: {ticker.modelGreeks.delta}")
+else:
+    print("Model Greeks are not available for this option.")
+
+
+
+
+'''
+
+# Start the iterative process
+prev_delta = None
+while True:
+    option = Option('SPY', closest_expiration_int, strike, right='P', exchange='SMART')
+    ib.qualifyContracts(option)
+    [ticker] = ib.reqTickers(option)
+    delta = ticker.modelGreeks.delta
+
+    print(f"Strike: {strike}, Delta: {delta}")
+
+    if prev_delta is not None and ((prev_delta < -0.15 and delta > -0.15) or (prev_delta > -0.15 and delta < -0.15)):
+        # The delta has alternated around -0.15, so we've found the two closest strikes
+        print("Delta has alternated around -0.15")
+        if abs(prev_delta + 0.15) < abs(delta + 0.15):
+            # The previous strike was closer to -0.15
+            print("Previous strike was closer to -0.15")
+            strike -= 1
+        break
+    elif delta < -0.15:
+        print("Delta is less than -0.15, increasing strike")
+        strike += 1
+    elif delta > -0.15:
+        print("Delta is greater than -0.15, decreasing strike")
+        strike -= 1
+
+    prev_delta = delta
+
+print(strike)
+
+
+'''
