@@ -41,8 +41,12 @@ ib.reqMarketDataType(1)
 # Request market data
 market_data = ib.reqMktData(option)
 
+print("Waiting for market data to update...")
+
 # Wait for the market data to update
-ib.sleep(1)
+ib.sleep(10)
+
+print("Time has slept")
 
 # Get the ticker
 [ticker] = ib.reqTickers(option)
